@@ -13,4 +13,4 @@
 
 # Usage
 
-    python vision_chat.py
+    python vision_chat.py [-h] [--host HOST] [--port PORT] [--models-path MODELS_PATH]
