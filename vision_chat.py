@@ -7,17 +7,17 @@ from models.bunny import BunnyModel
 from models.cogvlm2 import CogVLM2Model
 
 
-def load_model(state, model_name):
+def load_model(state, model_name, cuda_device):
     state["model_name"] = model_name
     if 'bunny' in model_name.lower():
         print(f"Loading: {model_name}")
         bunny = BunnyModel(f"{state['models_path']}/{model_name}")
-        bunny.load()
+        bunny.load(cuda_device)
         state["model"] = bunny
     elif 'cogvlm2' in model_name.lower():
         print(f"Loading: {model_name}")
         cogvlm2 = CogVLM2Model(f"{state['models_path']}/{model_name}")
-        cogvlm2.load()
+        cogvlm2.load(cuda_device)
         state["model"] = cogvlm2
     return state
 
@@ -69,16 +69,28 @@ def model_selection_update(state, model_name):
     return state
 
 
+chat_placeholder_active = "Select and image, Enter text and press ENTER"
+chat_placeholder_inactive = 'Load a model first'
+
+
 def state_change(state):
     if "model" in state and state["model"] is not None:
-        return (state, gr.Button(
-            visible=True,
-            variant="primary"
-        ),
-                gr.Button(visible=True, variant="stop",
-                          interactive=True))
+        return (
+            state,
+            gr.Button(
+                visible=True,
+                variant="primary"
+            ),
+            gr.Button(visible=True, variant="stop", interactive=True),
+            gr.MultimodalTextbox(interactive=True, placeholder=chat_placeholder_active)
+        )
     else:
-        return state, gr.Button(), gr.Button(interactive=False)
+        return (
+            state,
+            gr.Button(),
+            gr.Button(interactive=False),
+            gr.MultimodalTextbox(interactive=False, placeholder=chat_placeholder_inactive)
+        )
 
 
 def build_ui(models_path):
@@ -87,7 +99,8 @@ def build_ui(models_path):
     ui = gr.Blocks(
         title="Vision",
         theme=gr.themes.Default(primary_hue="violet", secondary_hue="lime"),
-        analytics_enabled=False
+        analytics_enabled=False,
+        fill_height=True,
     )
     with ui:
         state = gr.State({})
@@ -95,17 +108,23 @@ def build_ui(models_path):
         with gr.Column():
             with gr.Row():
                 with gr.Column(scale=2):
+                    chatbot = gr.Chatbot(elem_id="chatbot", height=700, render=False, )
+                    chat_input = gr.MultimodalTextbox(
+                        interactive=False,
+                        file_types=["image"],
+                        render=False,
+                        autofocus=True,
+                        show_label=False,
+                        placeholder=chat_placeholder_inactive,
+                    )
                     chat = gr.ChatInterface(
                         generate,
                         additional_inputs=[state],
                         retry_btn=None,
                         undo_btn=None,
                         multimodal=True,
-                        chatbot=gr.Chatbot(
-                            elem_id="chatbot",
-                            height=700,
-                            render=False,
-                        ),
+                        chatbot=chatbot,
+                        textbox=chat_input,
                     )
         with gr.Column():
             with gr.Row():
@@ -157,15 +176,21 @@ def build_ui(models_path):
                             label="Models Path",
                             value=models_path_default,
                         )
+                        cuda_device = gr.Textbox(
+                            max_lines=1,
+                            label="CUDA Device",
+                            value="0",
+                        )
 
         load_btn.click(
             load_model,
-            inputs=[state, model_selection],
-            outputs=[state]
+            inputs=[state, model_selection, cuda_device],
+            outputs=[state],
+            show_progress='full',
         ).then(
             state_change,
             inputs=[state],
-            outputs=[state, load_btn, unload_btn]
+            outputs=[state, load_btn, unload_btn, chat_input],
         )
 
         unload_btn.click(
@@ -175,7 +200,7 @@ def build_ui(models_path):
         ).then(
             state_change,
             inputs=[state],
-            outputs=[state, load_btn, unload_btn]
+            outputs=[state, load_btn, unload_btn, chat_input],
         )
 
         models_path.change(

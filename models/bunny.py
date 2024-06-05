@@ -23,14 +23,14 @@ class BunnyModel:
         setattr(torch.nn.Linear, "reset_parameters", lambda self: None)
         setattr(torch.nn.LayerNorm, "reset_parameters", lambda self: None)
 
-    def load(self):
+    def load(self, device=0):
         from transformers import AutoModelForCausalLM, AutoTokenizer
         import torch
-        torch.cuda.set_device(1)
+        torch.cuda.set_device(int(device))
         self.model = AutoModelForCausalLM.from_pretrained(
             self.model_path,
             torch_dtype=torch.bfloat16,
-            device_map="auto",
+            device_map={"": int(device)},
             trust_remote_code=True
         ).to(torch.bfloat16).cuda()
         self.tokenizer = AutoTokenizer.from_pretrained(

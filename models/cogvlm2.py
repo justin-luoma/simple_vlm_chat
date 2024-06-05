@@ -16,15 +16,16 @@ class CogVLM2Model:
         setattr(torch.nn.Linear, "reset_parameters", lambda self: None)
         setattr(torch.nn.LayerNorm, "reset_parameters", lambda self: None)
 
-    def load(self):
+    def load(self, device=0):
         from transformers import AutoModelForCausalLM, AutoTokenizer
         import torch
 
+        torch.cuda.set_device(int(device))
         if 'int4' in self.model_path:
             self.model = AutoModelForCausalLM.from_pretrained(
                 self.model_path,
                 torch_dtype=torch.bfloat16,
-                device_map={"": 1},
+                device_map={"": int(device)},
                 trust_remote_code=True,
                 load_in_4bit=True,
                 low_cpu_mem_usage=True,
@@ -33,7 +34,7 @@ class CogVLM2Model:
             self.model = AutoModelForCausalLM.from_pretrained(
                 self.model_path,
                 torch_dtype=torch.bfloat16,
-                device_map="auto",
+                device_map={"", int(device)},
                 trust_remote_code=True
             ).to(torch.bfloat16).cuda().eval()
         self.tokenizer = AutoTokenizer.from_pretrained(
