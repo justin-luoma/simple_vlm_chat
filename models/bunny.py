@@ -1,60 +1,18 @@
-class BunnyModel:
-    import torch
-    import transformers
-    from transformers import AutoModelForCausalLM, AutoTokenizer, TextIteratorStreamer
-    from PIL import Image
-    from bunny.util.utils import disable_torch_init
-    from bunny.util.mm_utils import KeywordsStoppingCriteria
-    from threading import Thread
+import warnings
 
-    def __init__(self, model_path):
-        self.model_path = model_path
-        self.model = None
-        self.tokenizer = None
+import torch
+import transformers
+from transformers import AutoModelForCausalLM, AutoTokenizer
 
-        import torch
-        import transformers
-        import warnings
+from models.base_model import BaseModel
 
-        transformers.logging.set_verbosity_error()
-        transformers.logging.disable_progress_bar()
-        warnings.filterwarnings('ignore')
-        torch.set_default_device("cuda")
-        setattr(torch.nn.Linear, "reset_parameters", lambda self: None)
-        setattr(torch.nn.LayerNorm, "reset_parameters", lambda self: None)
 
-    def load(self, device=0):
-        from transformers import AutoModelForCausalLM, AutoTokenizer
-        import torch
-        torch.cuda.set_device(int(device))
-        self.model = AutoModelForCausalLM.from_pretrained(
-            self.model_path,
-            torch_dtype=torch.bfloat16,
-            device_map={"": int(device)},
-            trust_remote_code=True
-        ).to(torch.bfloat16).cuda()
-        self.tokenizer = AutoTokenizer.from_pretrained(
-            self.model_path,
-            trust_remote_code=True
-        )
-
-        return self.model, self.tokenizer
-
-    def unload(self):
-        import torch
-
-        if self.model is not None:
-            del self.model
-            del self.tokenizer
-            self.model = None
-            self.tokenizer = None
-        torch.cuda.empty_cache()
+class BunnyModel(BaseModel):
 
     def generate(self, prompt, image, temperature=0.2, top_p=1.0, max_output_tokens=896, repetition_penalty=1.0):
         if self.model is None:
             print("model is not loaded")
         else:
-            from bunny.util.mm_utils import KeywordsStoppingCriteria
             from threading import Thread
             from transformers import TextIteratorStreamer
             import torch

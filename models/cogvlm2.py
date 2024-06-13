@@ -1,25 +1,15 @@
-class CogVLM2Model:
+from threading import Thread
 
-    def __init__(self, model_path):
-        self.model_path = model_path
-        self.model = None
-        self.tokenizer = None
+import torch
+from transformers import AutoModelForCausalLM, AutoTokenizer
+from transformers import TextIteratorStreamer
 
-        import torch
-        import transformers
-        import warnings
+from models.base_model import BaseModel
 
-        transformers.logging.set_verbosity_error()
-        transformers.logging.disable_progress_bar()
-        warnings.filterwarnings('ignore')
-        torch.set_default_device("cuda")
-        setattr(torch.nn.Linear, "reset_parameters", lambda self: None)
-        setattr(torch.nn.LayerNorm, "reset_parameters", lambda self: None)
 
-    def load(self, device=0):
-        from transformers import AutoModelForCausalLM, AutoTokenizer
-        import torch
+class CogVLM2Model(BaseModel):
 
+    def _load(self, device=0):
         torch.cuda.set_device(int(device))
         if 'int4' in self.model_path:
             self.model = AutoModelForCausalLM.from_pretrained(
@@ -44,20 +34,7 @@ class CogVLM2Model:
 
         return self.model, self.tokenizer
 
-    def unload(self):
-        import torch
-
-        if self.model is not None:
-            del self.model
-            del self.tokenizer
-            self.model = None
-            self.tokenizer = None
-        torch.cuda.empty_cache()
-
     def generate(self, prompt, image, temperature=0.2, top_p=1.0, max_output_tokens=896, repetition_penalty=1.0):
-        from transformers import TextIteratorStreamer
-        import torch
-        from threading import Thread
 
         if self.model is None:
             print("model is not loaded")

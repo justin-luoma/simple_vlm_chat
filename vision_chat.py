@@ -5,6 +5,7 @@ import os
 
 from models.bunny import BunnyModel
 from models.cogvlm2 import CogVLM2Model
+from models.phi_vision import PhiVisionModel
 
 
 def load_model(state, model_name, cuda_device):
@@ -12,19 +13,24 @@ def load_model(state, model_name, cuda_device):
     if 'bunny' in model_name.lower():
         print(f"Loading: {model_name}")
         bunny = BunnyModel(f"{state['models_path']}/{model_name}")
-        bunny.load(cuda_device)
+        bunny.load(state['model'], cuda_device)
         state["model"] = bunny
     elif 'cogvlm2' in model_name.lower():
         print(f"Loading: {model_name}")
         cogvlm2 = CogVLM2Model(f"{state['models_path']}/{model_name}")
-        cogvlm2.load(cuda_device)
+        cogvlm2.load(state['model'], cuda_device)
         state["model"] = cogvlm2
+    elif 'phi' in model_name.lower():
+        print(f"Loading: {model_name}")
+        phi = PhiVisionModel(f"{state['models_path']}/{model_name}")
+        phi.load(state['model'], cuda_device)
+        state["model"] = phi
     return state
 
 
 def unload_model(state):
     if "model" in state and state["model"] is not None:
-        print(f"unload: {state['model_name']}")
+        print(f"unloaded: {state['model_name']}")
         model = state["model"]
         model.unload()
         state["model_name"] = None
@@ -56,6 +62,7 @@ def get_models_list(models_path):
 
 def load_ui(state, models_path):
     state["models_path"] = models_path
+    state["model"] = None
     return state, gr.Dropdown(choices=get_models_list(models_path), interactive=True)
 
 
